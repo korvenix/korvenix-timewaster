@@ -1,0 +1,49 @@
+steps:
+  # ── Step 1: Build Docker image ─────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build'
+    args:
+      - 'build'
+      - '--tag'
+      - 'us-central1-docker.pkg.dev/korvenix-website-tooling/korvenix-website/timewaster:$COMMIT_SHA'
+      - '--tag'
+      - 'us-central1-docker.pkg.dev/korvenix-website-tooling/korvenix-website/timewaster:latest'
+      - '--cache-from'
+      - 'us-central1-docker.pkg.dev/korvenix-website-tooling/korvenix-website/timewaster:latest'
+      - '--build-arg'
+      - 'BUILDKIT_INLINE_CACHE=1'
+      - '.'
+
+  # ── Step 2: Push tags ──────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-sha'
+    args: ['push', 'us-central1-docker.pkg.dev/korvenix-website-tooling/korvenix-website/timewaster:$COMMIT_SHA']
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-latest'
+    args: ['push', 'us-central1-docker.pkg.dev/korvenix-website-tooling/korvenix-website/timewaster:latest']
+
+  # ── Step 3: Deploy to Cloud Run ────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'deploy'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'timewaster'
+      - '--project'
+      - 'korvenix-website-tooling'
+      - '--region'
+      - 'us-central1'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/korvenix-website-tooling/korvenix-website/timewaster:$COMMIT_SHA'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+
+images:
+  - 'us-central1-docker.pkg.dev/korvenix-website-tooling/korvenix-website/timewaster:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/korvenix-website-tooling/korvenix-website/timewaster:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+  dynamicSubstitutions: true
